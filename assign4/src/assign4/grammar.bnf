@@ -1,0 +1,6 @@
+c ::= number | math;
+<number> = integer | real; 
+<integer> = #'[0-9]+';
+<real> = #'[0-9.09]+';
+math = '+' | '-' | '/'; 
+
