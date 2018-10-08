@@ -34,6 +34,14 @@
     (conj  w_l {var1 (list c var2)}) ; adds :v_n (c v_n+1)
   ))
 
+(defn two_input
+  [w_l c v]
+  (let [var1 (varName v) ;current variable v_n 
+        var2 (varName (inc v)) ] ;will only know next variable for sure
+    (conj  w_l {var1 nil});doesn't actually need to be set yet 
+    ))
+
+
 (defn recursiveBuildWengert
   [vars body w_l v]
   ;-vars is map of input variables to values we are evaluating them on. 
@@ -46,9 +54,13 @@
   (let [e (if (symbol? body) body (first body)) ; if symbol just use that, else take first elemnt of sequence
         ]
     (cond
-      (contains? vars e) (addVariables vars e v w_l) ; means it is a variable
+      (contains? vars e) (list (addVariables vars e v w_l) v) ; means it is a variable
       (= (count body) 2) (recursiveBuildWengert vars (last body) (one_input w_l e v) (inc v)) ;an epression of 1 input
-      (= (count body) 3) 3; an expression of 2 inputs
+      (= (count body) 3) (let [ [n_w_l new_v] (recursiveBuildWengert vars (nth body 1) (two_input w_l e v) (inc v))
+                                n_w_l (map (fn [x] (if (contains? x (varName v)) (assoc x (varName v) (list e (varName (inc v)) (varName (inc new_v)))) x)) n_w_l) 
+                               ]  
+                            (recursiveBuildWengert vars (nth body 2) n_w_l (inc new_v))
+                           )
       (= (count body) 4) 3; an expression of 3 inputs
       )
 
@@ -118,10 +130,17 @@
 
 (defn handleDelta
   [z y_i args op_i values delta]
+  ;-z is the current variable we are processing which (should) exist in delta by now
+  ;-y_i current arg we are updating gradient of
+  ;-args all the arguments, we use these with the operation
+  ;-op_i the derivative of the operation
+  ;-value is dictionary of forward pass
+  ;-delta current derivative
+  
   (let [ d (if (contains? delta y_i) delta (assoc delta y_i 0) )
         cur_der (get d y_i)
         val_args (into [] (map #(get values %) args))
-        op_val (apply op_i val_args) 
+        op_val  (apply op_i val_args) 
         new_val (+ cur_der (* (get d z) op_val))
         ] 
     (assoc d y_i new_val)
@@ -133,36 +152,35 @@
   ; entry is map of current expression to handle
   ; values is a map of each variable done in forward pass
   ; delta is current derivatives
-  ;(println entry)
-  ;(println values)
-  ;(println delta)
   (let [ z (first (keys entry)) ; variable we are handling
         v (get entry z) ; body expression to date derivative of
         ]
     (if (seq? v)
       (let [
-        g (first v) ; means first element is sequence 
-        op (get partial-fns g)
-        args (rest v)
+        g (first v) ; means first element an operation 
+        op (get partial-fns g); get the derivative operation 
+        args (rest v) ; all other values will be inputs
         
         ] 
+        ;for each argument, process it's gradient
+        
       (loop [to_do args
-             i 0 ; 
-              op_i (get op i)
-             update_delta delta
+             i 0; start with first argument 
+             op_i (get op i) ; get the first operation 
+             update_delta delta ; the updated dictionary of derivatives
              ]
-        (if (empty? to_do) update_delta
-          (let [y_i (first to_do) 
+        (if (empty? to_do) update_delta ; if processed all args, return new dictionary
+          (let [y_i (first to_do) ; y_i is the next argument to process 
                 r (rest to_do)]
-                (recur  (rest to_do)
-                          (inc i)
-                          (op_i (inc i))
-                          (handleDelta  z y_i args op_i values delta)
+                (recur r 
+                          (inc i) ; go to next derivative
+                          (get op (inc i)) ; if it's beyond boudary will return nil
+                          (handleDelta  z y_i args op_i values update_delta)
                         
           ))))) 
       (if (not (number? v))
         (let [d (if (contains? delta v) delta (assoc delta v 0))]
-         (assoc d v (+ (get d v) (d z))) 
+         (assoc d v (+ (get d v) (get d z))) 
          
         )
         delta ; if it's a number then we're done 
@@ -172,11 +190,11 @@
  [values  w_l]
   ;-values are the forward pass values
   ;-w_l is our list of maps corresponding to each operation done in graph
-  (loop [to_do (reverse w_l) ; rest because :f v_0 is redundant
-         delta {:f 1} ]
+  (loop [to_do (reverse w_l) ; go through wengert list in reverse order 
+         delta {:f 1} ] ;initialize derivatives with 1
     (if (empty? to_do)
       delta
-      (let [ f (first to_do) ; 
+      (let [ f (first to_do) ; my tuple pair: (z (g e1 ... en)) where z is the variable, g is operand and e1...en are inputs 
              r (rest to_do)
             ]
         (recur r (updateDelta f values delta))
@@ -190,25 +208,24 @@
 (defn autograd
   [f inputs]
 
-  ;(println function) 
   
-  ;(println (list function))
   (let [ [op args body] f 
         vars (zipmap args inputs) ; creats a map between the vector args and inputs. e.g. [x] [1] => {'x 1}
-        w_l (wengertList vars body) ; create the wengert list
+        [w_l v] (wengertList vars body) ; create the wengert list
+        w_l (distinct w_l)
         values  (forward w_l ) ; do the forward pass 
         derivs (backward values w_l) ;calculate the backwad pass
         ]
-   (println w_l)
+   ;(println w_l)
    ;(println values)
-   (println "done reverse dif")
-   (println derivs) 
+   ;(println "done reverse dif")
+   ;(println derivs) 
    (list (get values :f) (zipmap (map #(format "df/d%s" %)args) (map #(get derivs %) args ))) ;this gives the value
       ))
 
-
+(autograd prog2 [3 4])
 (autograd prog1 [3])
-(autograd prog4 [3])
+;(autograd prog4 [3])
 ;(or (instance? Long f) (symbol? f ) (empty? f) (number? f) )
 
  

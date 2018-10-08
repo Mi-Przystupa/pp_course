@@ -44,7 +44,7 @@
   ;(apply (eval (finite-difference-grad '(fn [x y] (+ (* x x) (sin x)))
   ; )) [3 5])
 
-  (println (autograd prog4 [3]))
+  (println (autograd prog2 [3 4]))
 
   )
 
