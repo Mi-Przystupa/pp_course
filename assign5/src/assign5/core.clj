@@ -37,6 +37,46 @@
     (/ (+ a (* 7 b)) (sin c))))
 
 
+(println (count (finite-difference-grad  prog6  )))
+(apply (eval prog1) [1])
+
+(def xmusi [0.5 0 1])
+(def inputs   (list [10]  [3 2] [20]  [3]   [13]  xmusi xmusi xmusi))
+(def programs (list prog1 prog2 prog3 prog3 prog4 prog5 prog6 prog7 ))
+(def to_check (map vector inputs programs))
+
+
+(defn check_all
+  []
+(loop [todo to_check ]
+    (if (empty? todo)
+      (println "we done")
+
+       (let [ arg_func (first todo)
+             r (rest todo)
+             arg (first arg_func)
+             func (last arg_func)
+             [f vars body] func
+
+             forward (apply (eval func) arg)
+             aprox_deriv (finite-difference-grad func) 
+
+             aprox_deriv (apply (eval aprox_deriv) arg);(apply (eval x) arg)) aprox_deriv)
+             names  (map #(format "df/d%s" %) vars)
+             forward_backward (list forward  (zipmap names aprox_deriv) )
+            ] 
+         (println "Program:")
+         (println func)
+         (println forward_backward)
+         (autograd func arg)
+         (recur r)
+      )
+  ;(println (autograd prog6 [0.5 0 1]))
+  ;(println (apply (eval (finite-difference-grad  prog6  )) [0.5 0 1]))
+
+  )))
+
+(check_all)
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
@@ -44,21 +84,6 @@
   ;(apply (eval (finite-difference-grad '(fn [x y] (+ (* x x) (sin x)))
   ; )) [3 5])
 
-  (println (autograd prog2 [3 4]))
-
+  
   )
-
 ;something to eval all the programs
-(comment
-(loop [ x (vector prog1 prog2 prog3 prog4 prog5 prog6 prog7)]
-    (println "new program")
-    (println (first x))
-    (println (autograd (first x)))
-
-    (if (empty? x)
-      (println "all done")
-      (recur (rest x))
-          )
-
-  )
-  )

@@ -61,7 +61,8 @@
 
         {'log [(fn [a] (/ 1 a))]}; <--- base e
 
-;        {'normpdf [...]}
+        {'normpdf  [(fn [x mu sigma] (- (/ (- x mu) (* sigma sigma))))  (fn [x mu sigma] (/ (- x mu) (* sigma sigma)) ) 
+                                (fn [x mu sigma] (- (/ (* (* (- x mu) (- x mu )) sigma) (* sigma sigma sigma sigma)) (/ 1 sigma)))   ]}
 
 
         {'sin [(fn [a] (cos a))]})))

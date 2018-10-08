@@ -23,6 +23,14 @@
     (conj (conj w_l  {v_n e} ) {e (get vars e)} ) ; assumes w_l is a list so conj will append to beginning 
   ))
 
+(defn addNumber 
+  [e v w_l]
+
+  (let [v_n (varName v)]
+    (conj w_l {v_n e})
+    )
+  )
+
 
 (defn one_input
   [w_l c v] 
@@ -41,6 +49,10 @@
     (conj  w_l {var1 nil});doesn't actually need to be set yet 
     ))
 
+(defn resolveCond
+  [condExpr vars]
+  (eval (map (fn [x] (if (contains? vars x) (get vars x) x)) condExpr))
+)
 
 (defn recursiveBuildWengert
   [vars body w_l v]
@@ -50,18 +62,29 @@
   ;-w_l is our accumulator for the wengert list so far
   ;--it is a list of maps, each map is of form {:var expression}
   ;-v is our current variable
-
-  (let [e (if (symbol? body) body (first body)) ; if symbol just use that, else take first elemnt of sequence
+  (let [e (if (seq? body) (first body) body) ; if sequence then first element is an op else it's likely a symbol or number
         ]
     (cond
       (contains? vars e) (list (addVariables vars e v w_l) v) ; means it is a variable
+      (number? e) (list (addNumber e v w_l) v) ; means we have hit a number so create variable for it and return
+      (= 'if e)  (if (resolveCond (nth body 1) vars) (recursiveBuildWengert vars (nth body 2) w_l v) (recursiveBuildWengert vars (nth body 3) w_l v) )
       (= (count body) 2) (recursiveBuildWengert vars (last body) (one_input w_l e v) (inc v)) ;an epression of 1 input
       (= (count body) 3) (let [ [n_w_l new_v] (recursiveBuildWengert vars (nth body 1) (two_input w_l e v) (inc v))
                                 n_w_l (map (fn [x] (if (contains? x (varName v)) (assoc x (varName v) (list e (varName (inc v)) (varName (inc new_v)))) x)) n_w_l) 
                                ]  
                             (recursiveBuildWengert vars (nth body 2) n_w_l (inc new_v))
                            )
-      (= (count body) 4) 3; an expression of 3 inputs
+      (= (count body) 4) (let [ [n_w_l new_v] (recursiveBuildWengert vars (nth body 1) (two_input w_l e v) (inc v)) ; process first expresion 
+                               var1 (varName (inc v)); input 1 
+                               var2 (varName (inc new_v)) ;input 2
+                               [n_w_l new_v] (recursiveBuildWengert vars (nth body 2) n_w_l (inc new_v)) ; process 2nd expression 
+
+                               var3 (varName (inc new_v)) ;input 3
+                                n_w_l (map (fn [x] (if (contains? x (varName v)) (assoc x (varName v) (list e var1 var2 var3 )) x)) n_w_l) ; create current node with variables
+
+                               ]  
+                            (recursiveBuildWengert vars (nth body 3) n_w_l (inc new_v))
+                           ) ;an expression of 3 inputs
       )
 
 
@@ -108,7 +131,7 @@
   ;-- should contain maps in order of : {key expression}
 
   (let [w_l_map (into {} w_l) ; convert w_l to map to easily access previously evaled variables
-        vars (keys w_l_map) ; all the variable names to be evaluated
+        vars (map (fn [x] (first (keys x))) w_l) ; all the variable names to be evaluated
         ;^ important thing: these keys need to be in order: v0,v1,v2,v3,v4 so if you get bugs this could be issue 
         ] 
 
@@ -220,10 +243,23 @@
    ;(println values)
    ;(println "done reverse dif")
    ;(println derivs) 
-   (list (get values :f) (zipmap (map #(format "df/d%s" %)args) (map #(get derivs %) args ))) ;this gives the value
-      ))
+    (let [ df (map #(format "df/d%s" %) args)
+          df_values (map (fn [x] (if (= nil (get derivs x)) 0 (get derivs x))) args )
+          derivatives (zipmap df df_values)
+          forward_val (get values :f)
+          ]
+      (println (list forward_val derivatives))
 
-(autograd prog2 [3 4])
+      (list forward_val derivatives)
+      )))
+
+
+(autograd prog7 [0.5 0 1])
+(autograd prog6 [0.5 0 1])
+(autograd prog5 [1 2 3])
+(autograd prog4 [3 ])
+(autograd prog3 [2])
+(autograd prog2 [2 3])
 (autograd prog1 [3])
 ;(autograd prog4 [3])
 ;(or (instance? Long f) (symbol? f ) (empty? f) (number? f) )
