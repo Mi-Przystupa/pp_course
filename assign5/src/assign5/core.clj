@@ -40,9 +40,10 @@
 (println (count (finite-difference-grad  prog6  )))
 (apply (eval prog1) [1])
 
-(def xmusi [0.5 0 1])
-(def inputs   (list [10]  [3 2] [20]  [3]   [13]  xmusi xmusi xmusi))
-(def programs (list prog1 prog2 prog3 prog3 prog4 prog5 prog6 prog7 ))
+(def xmusi [10 0 2])
+(def p7i [2 7.01 5])
+(def inputs   (list [0]  [0 10] [5.000001]  [0.1] xmusi xmusi p7i  ))
+(def programs (list prog1 prog2 prog3       prog4 prog5 prog6 prog7 ))
 (def to_check (map vector inputs programs))
 
 
@@ -67,7 +68,7 @@
             ] 
          (println "Program:")
          (println func)
-         (println forward_backward)
+         ;(println forward_backward)
          (autograd func arg)
          (recur r)
       )
