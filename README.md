@@ -1,5 +1,5 @@
 # pp_course
-Probabalistic Programming Assignments
+Assignments for Introduction to Probabilistic Programming course taught by Frank Wood. 
 
 
 # Compiler details
